@@ -1,3 +1,4 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, get, push, set, update, remove }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
