@@ -239,8 +239,6 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <select id="fcat" class="fsel" onchange="renderUI()">
               <option value="">All Categories</option>
-              <option>🍔 Food</option><option>✈️ Transport</option><option>🏨 Stay</option>
-              <option>🎭 Fun</option><option>🛍️ Shopping</option><option>💊 Medical</option><option>📦 Other</option>
             </select>
             <select id="fpaid" class="fsel" onchange="renderUI()">
               <option value="">All Members</option>
@@ -327,10 +325,9 @@
     <div class="fl"><label>Description</label><input type="text" id="e-name" class="fi" placeholder="e.g. Hotel dinner"></div>
     <div class="fl"><label>Amount (₹)</label><input type="number" id="e-amt" class="fi" placeholder="0" min="1" inputmode="numeric" oninput="onAmtChg()"></div>
     <div class="g2">
-      <div class="fl"><label>Category</label>
+      <div class="fl"><label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">Category <button type="button" class="btn bg bxs" style="font-size:10px;padding:3px 8px;margin:0" onclick="openCatMgr()">+ Manage</button></label>
         <select id="e-cat" class="fi">
-          <option>🍔 Food</option><option>✈️ Transport</option><option>🏨 Stay</option>
-          <option>🎭 Fun</option><option>🛍️ Shopping</option><option>💊 Medical</option><option>📦 Other</option>
+          <option>🍔 Food</option>
         </select></div>
       <div class="fl"><label>Date</label><input type="date" id="e-date" class="fi"></div>
     </div>
@@ -395,5 +392,24 @@
 <div class="toast" id="toast"></div>
 
 <script type="module" src="js/app.js"></script>
+
+<!-- ══ MANAGE CATEGORIES MODAL ══ -->
+<div class="modal" id="m-cats">
+  <div class="mbox">
+    <div class="mtitle">🗂️ Manage Categories</div>
+    <div id="cat-mgr-list" style="max-height:240px;overflow-y:auto;padding:0 14px 8px"></div>
+    <div style="padding:14px;border-top:1px solid var(--bdr)">
+      <div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:8px">Add New Category</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <input type="text" id="new-cat-emoji" class="fi" placeholder="🏷️" style="margin:0;width:52px;text-align:center;font-size:18px;padding:7px 4px">
+        <input type="text" id="new-cat-label" class="fi" placeholder="Category name" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')addCat()">
+        <button class="btn bl" onclick="addCat()">Add</button>
+      </div>
+    </div>
+    <div style="padding:0 14px 14px">
+      <button class="btn bg" style="width:100%" onclick="closeM('m-cats')">Done</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
