@@ -648,6 +648,8 @@ select.fi{appearance:none;-webkit-appearance:none;cursor:pointer;background-imag
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <select id="fcat" class="fsel" onchange="renderUI()">
               <option value="">All Categories</option>
+              <option>🍔 Food</option><option>✈️ Transport</option><option>🏨 Stay</option>
+              <option>🎭 Fun</option><option>🛍️ Shopping</option><option>💊 Medical</option><option>📦 Other</option>
             </select>
             <select id="fpaid" class="fsel" onchange="renderUI()">
               <option value="">All Members</option>
@@ -733,11 +735,7 @@ select.fi{appearance:none;-webkit-appearance:none;cursor:pointer;background-imag
         <div class="pb" id="settle-list"></div>
       </div>
 
-      <!-- Balance sheet -->
-      <div class="pnl">
-        <div class="ph"><span class="pt">Balance Sheet</span></div>
-        <div class="pb" id="balance-sheet"></div>
-      </div>
+
     </div>
 
   </div><!-- /main -->
@@ -754,9 +752,10 @@ select.fi{appearance:none;-webkit-appearance:none;cursor:pointer;background-imag
       <div class="fl"><label>Paid By</label><select id="e-paid" class="fi"></select></div>
     </div>
     <div class="g2">
-      <div class="fl"><label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">Category <button type="button" class="btn bg bxs" style="font-size:10px;padding:3px 9px;margin:0;border-radius:6px" onclick="openCatMgr()">+ Manage</button></label>
+      <div class="fl"><label>Category</label>
         <select id="e-cat" class="fi">
-          <option>🍔 Food</option>
+          <option>🍔 Food</option><option>✈️ Transport</option><option>🏨 Stay</option>
+          <option>🎭 Fun</option><option>🛍️ Shopping</option><option>💊 Medical</option><option>📦 Other</option>
         </select></div>
       <div class="fl"><label>Date</label><input type="date" id="e-date" class="fi"></div>
     </div>
@@ -841,49 +840,6 @@ const fmt     = n => '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN');
 const fmtDate = d => { if(!d) return ''; const [y,m,day]=d.split('-'); return `${day}-${m}-${y}`; };
 const today = () => new Date().toISOString().split('T')[0];
 const PAL   = ['#7c5fff','#22d07a','#ff5273','#b8f724','#2dd4d4','#f7a825','#f97316','#e879f9'];
-
-/* ── CATEGORIES (localStorage-persisted) ── */
-const DEFAULT_CATS=['🍔 Food','✈️ Transport','🏨 Stay','🎭 Fun','🛍️ Shopping','💊 Medical','📦 Other'];
-const CAT_KEY='ss_cats';
-function loadCats(){try{const r=localStorage.getItem(CAT_KEY);return r?JSON.parse(r):[...DEFAULT_CATS];}catch{return[...DEFAULT_CATS];}}
-function saveCats(c){localStorage.setItem(CAT_KEY,JSON.stringify(c));}
-let CATS=loadCats();
-function syncCatDropdowns(selVal){
-  ['e-cat','fcat'].forEach(id=>{
-    const el=$(id);if(!el)return;
-    const isFilter=id==='fcat';
-    const prev=el.value;
-    el.innerHTML=(isFilter?'<option value="">All Categories</option>':'')+CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
-    if(selVal!==undefined)el.value=CATS.includes(selVal)?selVal:CATS[0];
-    else el.value=CATS.includes(prev)?prev:(isFilter?'':CATS[0]);
-  });
-}
-window.openCatMgr=()=>{renderCatMgr();$('m-cats').classList.add('on');};
-function renderCatMgr(){
-  $('cat-mgr-list').innerHTML=CATS.map((c,i)=>`
-    <div class="mr" style="gap:10px;padding:6px 0">
-      <span style="font-size:20px;width:28px;text-align:center">${c.split(' ')[0]}</span>
-      <span style="flex:1;font-size:13px;font-weight:600">${c.split(' ').slice(1).join(' ')}</span>
-      ${DEFAULT_CATS.includes(c)
-        ?'<span style="font-size:10px;color:var(--sub2);padding:2px 6px;background:var(--ink4);border-radius:4px">default</span>'
-        :`<button class="btn bg bxs" style="color:var(--rose);padding:4px 9px" onclick="deleteCat(${i})">✕</button>`}
-    </div>`).join('')||'<div class="empty"><p>No categories</p></div>';
-}
-window.deleteCat=idx=>{
-  if(CATS.length<=1){toast('Need at least one category');return;}
-  CATS.splice(idx,1);saveCats(CATS);syncCatDropdowns();renderCatMgr();toast('Category removed');
-};
-window.addCat=()=>{
-  const emoji=($('new-cat-emoji').value.trim()||'📌');
-  const label=($('new-cat-label').value.trim());
-  if(!label){toast('Enter a category name');return;}
-  const full=emoji+' '+label;
-  if(CATS.find(c=>c.toLowerCase()===full.toLowerCase())){toast('Already exists');return;}
-  CATS.push(full);saveCats(CATS);syncCatDropdowns(full);
-  $('new-cat-emoji').value='';$('new-cat-label').value='';
-  renderCatMgr();toast('Category added ✓');
-};
-
 const col   = n => { let h=0; for(const c of(n||'?'))h+=c.charCodeAt(0); return PAL[h%PAL.length]; };
 const ns    = () => Object.values(S.members).map(m=>m.name);
 const $     = id => document.getElementById(id);
@@ -1204,7 +1160,7 @@ async function loadAll(){
 
 function launch(){
   document.querySelectorAll('.scr').forEach(s=>s.classList.add('hidden'));
-  $('app').style.display='flex'; syncCatDropdowns(); renderUI();
+  $('app').style.display='flex'; renderUI();
 }
 
 /* COPY CODE */
@@ -1278,7 +1234,7 @@ function renderMemModal(){
 /* EXPENSE FORM */
 function resetForm(){
   $('eid').value=''; $('e-name').value=''; $('e-amt').value='';
-  syncCatDropdowns(); $('e-date').value=today(); $('e-notes').value='';
+  $('e-cat').value='🍔 Food'; $('e-date').value=today(); $('e-notes').value='';
   $('m-exp-title').textContent='💸 Add Expense'; $('btn-save').textContent='Save';
   fillPaidBy(''); S.splitType='equal'; S.sel=[...ns()];
   renderSplitList(); setSplit('equal');
@@ -1369,7 +1325,7 @@ window.openAdd = () => { resetForm(); $('m-exp').classList.add('on'); };
 window.editExp = async id => {
   const e=S.expenses[id]; if(!e) return;
   resetForm(); $('eid').value=id; $('e-name').value=e.name; $('e-amt').value=e.amount;
-  syncCatDropdowns(e.category); $('e-date').value=e.date||today(); $('e-notes').value=e.notes||'';
+  $('e-cat').value=e.category; $('e-date').value=e.date||today(); $('e-notes').value=e.notes||'';
   fillPaidBy(e.paidBy); S.sel=e.splitBetween||[...ns()]; renderSplitList();
   setSplit(e.splitType||'equal'); $('m-exp-title').textContent='✏️ Edit Expense'; $('btn-save').textContent='Update';
   $('m-exp').classList.add('on');
@@ -1609,22 +1565,12 @@ function renderMemSide(exps){
     if(e.splits) Object.values(e.splits).forEach(s=>owes[s.name]=(owes[s.name]||0)+(s.share||0));
     else if(e.splitBetween?.length){ const sh=(e.amount||0)/e.splitBetween.length; e.splitBetween.forEach(n=>owes[n]=(owes[n]||0)+sh); }
   });
-  // Adjust net for settled transactions so balance clears after settle-up
-  const settledAdj={};
-  names.forEach(n=>settledAdj[n]=0);
-  calcSettle().forEach(t=>{
-    const key=`${t.from}_${t.to}`.replace(/\s/g,'_');
-    if(S.settlements[key]?.settled){
-      settledAdj[t.from]=(settledAdj[t.from]||0)+t.amount;
-      settledAdj[t.to]  =(settledAdj[t.to]  ||0)-t.amount;
-    }
-  });
   $('mem-side').innerHTML=names.map(n=>{
-    const net=((paid[n]||0)-(owes[n]||0))+(settledAdj[n]||0);
+    const net=(paid[n]||0)-(owes[n]||0);
     return `<div class="mr">
       <div class="mav" style="background:${col(n)};width:32px;height:32px;font-size:12px">${n[0].toUpperCase()}</div>
       <div style="flex:1"><div class="mname">${n}</div><div class="msub">paid ${fmt(paid[n]||0)}</div></div>
-      <div class="${Math.abs(net)<0.5?'pos':net>0?'pos':'neg'}" style="font-size:13px">${Math.abs(net)<0.5?'✓ Settled':((net>0?'+':'-')+fmt(Math.abs(net)))}</div>
+      <div class="${net>=0?'pos':'neg'}" style="font-size:13px">${net>=0?'+':'-'}${fmt(net)}</div>
     </div>`;
   }).join('')||'<div class="empty" style="padding:16px"><p>No members</p></div>';
 }
@@ -1656,14 +1602,8 @@ function renderPeopleTab(exps,total){
     const net=((paid[m.name]||0)-(owes[m.name]||0)) + (settledAdj[m.name]||0);
     return `<div class="mr">
       <div class="mav" style="background:${col(m.name)};width:34px;height:34px;font-size:13px">${m.name[0].toUpperCase()}</div>
-      <div style="flex:1">
-        <div class="mname">${m.name}</div>
-        <div class="msub">${cnt[m.name]||0} expense${cnt[m.name]!==1?'s':''}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span class="badge ${net>=0?'bg-g':'bg-r'}">${net>=0?'+':'-'}${fmt(net)}</span>
-        <button class="btn bg bxs" style="color:var(--rose)" onclick="removeMem('${id}')">✕</button>
-      </div>
+      <div style="flex:1"><div class="mname">${m.name}</div></div>
+      <button class="btn bg bxs" style="color:var(--rose)" onclick="removeMem('${id}')">✕</button>
     </div>`;
   }).join('')||'<div class="empty"><p>No members yet. Add members above.</p></div>';
 
@@ -1769,27 +1709,5 @@ function renderSettleTab(){
 }
 
 </script>
-
-<!-- ══ MANAGE CATEGORIES MODAL ══ -->
-<div class="modal" id="m-cats">
-  <div class="mbox">
-    <div class="mtitle">🗂️ Categories</div>
-    <div id="cat-mgr-list" style="max-height:220px;overflow-y:auto;padding:4px 14px 8px"></div>
-    <div style="padding:12px 14px;border-top:1px solid var(--rim)">
-      <div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:8px">Add New Category</div>
-      <div style="display:flex;gap:7px;align-items:center">
-        <input type="text" id="new-cat-emoji" class="fi" placeholder="🏷️" maxlength="2"
-          style="margin:0;width:50px;text-align:center;font-size:18px;padding:7px 4px">
-        <input type="text" id="new-cat-label" class="fi" placeholder="Name"
-          style="margin:0;flex:1" onkeydown="if(event.key==='Enter')addCat()">
-        <button class="btn bl" onclick="addCat()">Add</button>
-      </div>
-    </div>
-    <div style="padding:0 14px 14px">
-      <button class="btn bg" style="width:100%;margin-top:4px" onclick="closeM('m-cats')">Done</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
