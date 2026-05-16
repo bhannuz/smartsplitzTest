@@ -24,6 +24,47 @@ const ns    = () => Object.values(S.members).map(m=>m.name);
 const $     = id => document.getElementById(id);
 const setT  = (id,t) => { const e=$(id); if(e) e.textContent=t; };
 
+/* CATEGORIES — localStorage-persisted */
+const DEFAULT_CATS = ['🍔 Food','✈️ Transport','🏨 Stay','🎭 Fun','🛍️ Shopping','💊 Medical','📦 Other'];
+const CAT_KEY = 'ss_cats';
+function loadCats(){ try{ const r=localStorage.getItem(CAT_KEY); return r?JSON.parse(r):[...DEFAULT_CATS]; }catch{ return [...DEFAULT_CATS]; } }
+function saveCats(cats){ localStorage.setItem(CAT_KEY,JSON.stringify(cats)); }
+let CATS = loadCats();
+function syncCatDropdowns(selVal){
+  ['e-cat','fcat'].forEach(id=>{
+    const el=$(id); if(!el) return;
+    const isFilter = id==='fcat';
+    const prev = el.value;
+    el.innerHTML=(isFilter?'<option value="">All Categories</option>':'')+CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
+    if(selVal!==undefined) el.value=selVal||CATS[0];
+    else el.value = CATS.includes(prev)?prev:(isFilter?'':CATS[0]);
+  });
+}
+window.openCatMgr = () => { renderCatMgr(); $('m-cats').classList.add('on'); };
+function renderCatMgr(){
+  $('cat-mgr-list').innerHTML=CATS.map((c,i)=>`
+    <div class="mr" style="gap:8px">
+      <span style="font-size:18px">${c.split(' ')[0]}</span>
+      <span style="flex:1;font-size:13px;font-weight:600">${c.split(' ').slice(1).join(' ')}</span>
+      ${DEFAULT_CATS.includes(c)?'<span style="font-size:10px;color:var(--sub2)">default</span>':'<button class="btn bg bxs" style="color:var(--rose);padding:4px 8px" onclick="deleteCat('+i+')">✕</button>'}
+    </div>`).join('')||'<div class="empty"><p>No categories</p></div>';
+}
+window.deleteCat = idx => {
+  CATS.splice(idx,1); saveCats(CATS); syncCatDropdowns(); renderCatMgr(); toast('Category removed');
+};
+window.addCat = () => {
+  const emoji=($('new-cat-emoji').value.trim()||'📌');
+  const label=($('new-cat-label').value.trim());
+  if(!label){ toast('Enter a category name'); return; }
+  const full=emoji+' '+label;
+  if(CATS.includes(full)){ toast('Already exists'); return; }
+  CATS.push(full); saveCats(CATS); syncCatDropdowns(full);
+  $('new-cat-emoji').value=''; $('new-cat-label').value='';
+  renderCatMgr(); toast('Category added ✓');
+};
+
+
+
 function toast(msg,dur=2600){
   const t=$('toast'); t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),dur);
@@ -339,7 +380,7 @@ async function loadAll(){
 
 function launch(){
   document.querySelectorAll('.scr').forEach(s=>s.classList.add('hidden'));
-  $('app').style.display='flex'; renderUI();
+  $('app').style.display='flex'; syncCatDropdowns(); renderUI();
 }
 
 /* COPY CODE */
@@ -413,7 +454,7 @@ function renderMemModal(){
 /* EXPENSE FORM */
 function resetForm(){
   $('eid').value=''; $('e-name').value=''; $('e-amt').value='';
-  $('e-cat').value='🍔 Food'; $('e-date').value=today(); $('e-notes').value='';
+  syncCatDropdowns(); $('e-date').value=today(); $('e-notes').value='';
   $('m-exp-title').textContent='💸 Add Expense'; $('btn-save').textContent='Save';
   fillPaidBy(''); S.splitType='equal'; S.sel=[...ns()];
   renderSplitList(); setSplit('equal');
@@ -504,7 +545,7 @@ window.openAdd = () => { resetForm(); $('m-exp').classList.add('on'); };
 window.editExp = async id => {
   const e=S.expenses[id]; if(!e) return;
   resetForm(); $('eid').value=id; $('e-name').value=e.name; $('e-amt').value=e.amount;
-  $('e-cat').value=e.category; $('e-date').value=e.date||today(); $('e-notes').value=e.notes||'';
+  syncCatDropdowns(e.category); $('e-date').value=e.date||today(); $('e-notes').value=e.notes||'';
   fillPaidBy(e.paidBy); S.sel=e.splitBetween||[...ns()]; renderSplitList();
   setSplit(e.splitType||'equal'); $('m-exp-title').textContent='✏️ Edit Expense'; $('btn-save').textContent='Update';
   $('m-exp').classList.add('on');
@@ -521,7 +562,7 @@ window.markSettled = async key => {
   await set(ref(db,`smartsplit/settlements/${S.gid}/${key}`),{ settled:!done });
   await loadAll(); renderUI();
 };
-function calcBal(){
+function calcBal(includeSettled=false){
   const exps=Object.values(S.expenses), bal={};
   ns().forEach(n=>bal[n]=0);
   exps.forEach(e=>{
@@ -529,12 +570,23 @@ function calcBal(){
     if(e.splits) Object.values(e.splits).forEach(s=>bal[s.name]=(bal[s.name]||0)-(s.share||0));
     else if(e.splitBetween?.length){ const sh=(e.amount||0)/e.splitBetween.length; e.splitBetween.forEach(n=>bal[n]=(bal[n]||0)-sh); }
   });
+  // Adjust for settled transactions
+  if(!includeSettled){
+    const allTxns=calcSettleRaw(bal);
+    allTxns.forEach(t=>{
+      const key=`${t.from}_${t.to}`.replace(/\s/g,'_');
+      if(S.settlements[key]?.settled){
+        bal[t.from]=(bal[t.from]||0)+t.amount;
+        bal[t.to]=(bal[t.to]||0)-t.amount;
+      }
+    });
+  }
   return bal;
 }
-function calcSettle(){
-  const bal=calcBal();
+function calcSettleRaw(bal){
+  const b=Object.fromEntries(Object.entries(bal).map(([k,v])=>[k,v]));
   const cred=[],debt=[];
-  Object.entries(bal).forEach(([n,v])=>{ if(v>0.5)cred.push({name:n,amt:v}); else if(v<-0.5)debt.push({name:n,amt:-v}); });
+  Object.entries(b).forEach(([n,v])=>{ if(v>0.5)cred.push({name:n,amt:v}); else if(v<-0.5)debt.push({name:n,amt:-v}); });
   cred.sort((a,b)=>b.amt-a.amt); debt.sort((a,b)=>b.amt-a.amt);
   const txns=[]; let ci=0,di=0;
   while(ci<cred.length&&di<debt.length){
@@ -543,6 +595,11 @@ function calcSettle(){
     c.amt-=pay; d.amt-=pay; if(c.amt<0.5)ci++; if(d.amt<0.5)di++;
   }
   return txns;
+}
+function calcSettle(){
+  // Use raw (pre-settlement) balances so all transactions are always shown
+  const rawBal=calcBal(true);
+  return calcSettleRaw(rawBal);
 }
 
 /* ══════════════ MAIN RENDER ══════════════ */
@@ -675,7 +732,7 @@ function renderPeopleTab(exps,total){
       <div class="mav" style="background:${col(m.name)};width:34px;height:34px;font-size:13px">${m.name[0].toUpperCase()}</div>
       <div style="flex:1">
         <div class="mname">${m.name}</div>
-        <div class="msub">Paid ${fmt(paid[m.name]||0)} · ${cnt[m.name]||0} expense${cnt[m.name]!==1?'s':''}</div>
+        <div class="msub">${cnt[m.name]||0} expense${cnt[m.name]!==1?'s':''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="badge ${net>=0?'bg-g':'bg-r'}">${net>=0?'+':'-'}${fmt(net)}</span>
